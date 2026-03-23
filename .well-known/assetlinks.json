@@ -1,0 +1,11 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.github.crazy_moles.twa",
+      "sha256_cert_fingerprints":
+        ["AB:08:1C:AB:13:B1:1E:29:D4:3D:2D:34:76:C7:DE:F1:2A:95:C9:20:E9:93:77:9C:9B:B1:BD:3F:A7:C7:D7:C1"]
+    }
+  }
+]
