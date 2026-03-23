@@ -1,0 +1,848 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>CRAZY MOLES 3D</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap');
+
+  :root {
+    --grass: #2ecc40;
+    --dirt: #a0522d;
+    --sky: #87ceeb;
+    --gold: #ffd700;
+    --red: #ff4136;
+    --neon: #39ff14;
+    --purple: #b10dc9;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  body {
+    background: linear-gradient(180deg, #1a0533 0%, #0d1b4b 40%, #0a3d0a 100%);
+    min-height: 100dvh;
+    font-family: 'Fredoka One', cursive;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ===== STARS BG ===== */
+  #stars { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0; }
+  .star { position:absolute; border-radius:50%; background:#fff; animation: twinkle 2s infinite alternate; }
+  @keyframes twinkle { from{opacity:.2; transform:scale(.8)} to{opacity:1; transform:scale(1.2)} }
+
+  /* ===== HUD ===== */
+  #hud {
+    position: fixed; top:0; left:0; right:0; z-index:100;
+    display: flex; justify-content:space-between; align-items:center;
+    padding: 6px 16px;
+    background: linear-gradient(135deg, rgba(0,0,0,.85), rgba(50,0,80,.7));
+    backdrop-filter: blur(8px);
+    border-bottom: 2px solid rgba(255,215,0,.3);
+    height: 56px;
+  }
+  .hud-block { display:flex; flex-direction:column; align-items:center; }
+  .hud-label { font-family:'Nunito',sans-serif; font-size:9px; color:#aaa; letter-spacing:2px; text-transform:uppercase; }
+  .hud-val { font-size:26px; color:var(--gold); text-shadow: 0 0 12px var(--gold); line-height:1.1; }
+  #timer-val { color:#ff6b6b; text-shadow: 0 0 12px #ff6b6b; }
+  #combo-display {
+    position:fixed; top:60px; left:50%; transform:translateX(-50%);
+    font-size:18px; color:#fff; text-shadow:0 0 20px var(--neon);
+    z-index:99; pointer-events:none; transition: opacity .3s;
+    opacity:0; letter-spacing:2px; white-space:nowrap;
+  }
+
+  /* ===== ARENA ===== */
+  #arena {
+    position: fixed; top:64px; bottom:72px; left:0; right:0;
+    z-index:10;
+    display:flex; align-items:center; justify-content:center;
+    padding: 8px;
+  }
+  #field {
+    width: 100%;
+    max-width: min(94vw, 400px);
+    animation: fieldPulse 3s ease-in-out infinite;
+  }
+  @keyframes fieldPulse {
+    0%,100%{filter:drop-shadow(0 0 14px rgba(0,200,0,.4))}
+    50%{filter:drop-shadow(0 0 28px rgba(57,255,20,.5))}
+  }
+
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(8px,2.5vw,14px);
+    padding: clamp(10px,3vw,18px);
+    background: radial-gradient(ellipse at center, #1a5e1a 0%, #0d3d0d 100%);
+    border-radius: 24px;
+    border: 3px solid #4caf50;
+    box-shadow:
+      0 0 40px rgba(0,200,0,.3),
+      0 20px 60px rgba(0,0,0,.8),
+      inset 0 0 30px rgba(0,0,0,.4);
+    position:relative;
+  }
+
+  /* grass blades decoration */
+  #grid::before {
+    content:'';
+    position:absolute; top:-18px; left:0; right:0;
+    height:22px;
+    background: repeating-linear-gradient(90deg, transparent 0px, transparent 6px, #2ecc40 6px, #2ecc40 9px, transparent 9px, transparent 14px);
+    filter:drop-shadow(0 -2px 4px #2ecc40);
+    border-radius:6px 6px 0 0;
+  }
+
+  /* ===== HOLE ===== */
+  .hole-wrap {
+    aspect-ratio:1;
+    position:relative;
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(255,255,255,.1);
+    touch-action: manipulation;
+  }
+
+  .hole-base {
+    width:100%; height:100%;
+    border-radius:50%;
+    background: radial-gradient(ellipse at 40% 35%, #5a3010 0%, #2d1505 60%, #1a0c02 100%);
+    box-shadow:
+      inset 0 8px 20px rgba(0,0,0,.9),
+      inset 0 -3px 8px rgba(100,60,20,.3),
+      0 4px 12px rgba(0,0,0,.6);
+    position:relative; overflow:hidden;
+    border: 2px solid #6b3a1a;
+    transition: transform .08s, box-shadow .08s;
+  }
+  .hole-wrap:active .hole-base {
+    transform: scale(.93);
+    box-shadow: inset 0 8px 20px rgba(0,0,0,.9), 0 2px 6px rgba(0,0,0,.4);
+  }
+
+  /* rim highlight */
+  .hole-base::before {
+    content:'';
+    position:absolute; top:4px; left:10%; width:80%; height:30%;
+    background: radial-gradient(ellipse, rgba(255,255,255,.08) 0%, transparent 70%);
+    border-radius:50%;
+  }
+
+  /* ===== MOLE ===== */
+  .mole {
+    position:absolute;
+    bottom:0; left:50%;
+    transform: translateX(-50%) translateY(110%);
+    width:78%; height:auto;
+    transition: transform 0.15s cubic-bezier(.17,.67,.49,1.4);
+    pointer-events:none;
+    z-index:2;
+    will-change:transform;
+  }
+  .mole svg { width:100%; height:auto; display:block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.7)); }
+
+  .hole-wrap.active .mole { transform: translateX(-50%) translateY(18%); }
+  .hole-wrap.golden .mole { transform: translateX(-50%) translateY(18%); }
+  .hole-wrap.bomb .mole { transform: translateX(-50%) translateY(18%); }
+
+  /* ===== WHACK EFFECT ===== */
+  .hit-burst {
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%) scale(0);
+    width:120%; height:120%;
+    border-radius:50%;
+    pointer-events:none;
+    z-index:10;
+    animation: burst .4s ease-out forwards;
+  }
+  @keyframes burst {
+    0%{transform:translate(-50%,-50%) scale(0); opacity:1}
+    100%{transform:translate(-50%,-50%) scale(2.5); opacity:0}
+  }
+  .burst-star {
+    position:absolute; left:50%; top:50%;
+    width:6px; height:30px;
+    background:var(--gold);
+    border-radius:3px;
+    transform-origin:center bottom;
+    animation: starOut .5s ease-out forwards;
+  }
+  @keyframes starOut {
+    0%{transform:translateX(-50%) translateY(-100%) scaleY(1); opacity:1}
+    100%{transform:translateX(-50%) translateY(-400%) scaleY(.3); opacity:0}
+  }
+
+  /* floating score */
+  .float-score {
+    position:fixed; font-family:'Fredoka One',cursive;
+    font-size:32px; font-weight:900;
+    pointer-events:none; z-index:200;
+    animation: floatUp .8s ease-out forwards;
+    text-shadow: 0 2px 8px rgba(0,0,0,.8);
+  }
+  @keyframes floatUp {
+    0%{transform:translateY(0) scale(1.3); opacity:1}
+    100%{transform:translateY(-80px) scale(.7); opacity:0}
+  }
+
+  /* ===== SCREENS ===== */
+  .screen {
+    position:fixed; inset:0; z-index:300;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background: radial-gradient(ellipse at center, rgba(10,0,30,.97), rgba(0,0,0,.98));
+    backdrop-filter:blur(10px);
+    padding:24px;
+    text-align:center;
+  }
+  .screen.hidden { display:none; }
+
+  .game-title {
+    font-size: clamp(42px, 14vw, 80px);
+    background: linear-gradient(135deg, #ffd700 0%, #ff6b6b 30%, #b10dc9 60%, #39ff14 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text;
+    filter: drop-shadow(0 0 20px rgba(255,215,0,.5));
+    animation: titlePulse 2s ease-in-out infinite;
+    line-height:1;
+  }
+  @keyframes titlePulse {
+    0%,100%{filter:drop-shadow(0 0 20px rgba(255,215,0,.5))}
+    50%{filter:drop-shadow(0 0 40px rgba(255,100,200,.8))}
+  }
+  .title-sub {
+    font-family:'Nunito',sans-serif; font-weight:900;
+    font-size:clamp(12px,4vw,18px);
+    color:#aaa; letter-spacing:4px; text-transform:uppercase; margin-top:6px;
+  }
+
+  .btn {
+    margin-top:24px;
+    padding: 16px 40px;
+    font-family:'Fredoka One',cursive;
+    font-size:clamp(20px,6vw,28px);
+    border:none; border-radius:50px;
+    cursor:pointer;
+    position:relative; overflow:hidden;
+    transition: transform .1s, box-shadow .1s;
+    letter-spacing:1px;
+  }
+  .btn:active { transform:scale(.94); }
+  .btn-primary {
+    background: linear-gradient(135deg, #ffd700, #ff8c00);
+    color:#1a0a00;
+    box-shadow: 0 0 30px rgba(255,215,0,.6), 0 8px 24px rgba(0,0,0,.5);
+  }
+  .btn-secondary {
+    background: linear-gradient(135deg, #b10dc9, #6200ea);
+    color:#fff;
+    box-shadow: 0 0 30px rgba(177,13,201,.5), 0 8px 24px rgba(0,0,0,.5);
+    margin-top:14px;
+  }
+
+  .score-final {
+    font-size:clamp(50px,18vw,100px);
+    color:var(--gold);
+    text-shadow: 0 0 30px var(--gold), 0 0 60px rgba(255,215,0,.4);
+    animation: scoreBounce .5s cubic-bezier(.17,.67,.49,1.4);
+  }
+  @keyframes scoreBounce { 0%{transform:scale(0)} 60%{transform:scale(1.2)} 100%{transform:scale(1)} }
+
+  .medal { font-size:60px; animation: spin 1s ease-out; }
+  @keyframes spin { from{transform:rotate(-360deg) scale(0)} to{transform:rotate(0) scale(1)} }
+
+  .instructions {
+    font-family:'Nunito',sans-serif; font-size:clamp(13px,4vw,16px);
+    color:#ccc; line-height:1.8; margin-top:16px;
+    max-width:300px;
+  }
+  .instructions span { color:var(--gold); }
+
+  /* difficulty selector */
+  .diff-btns { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; justify-content:center; }
+  .diff-btn {
+    padding:10px 22px; border-radius:30px; border:2px solid transparent;
+    font-family:'Fredoka One',cursive; font-size:18px; cursor:pointer;
+    transition:.2s; background:rgba(255,255,255,.07); color:#fff;
+  }
+  .diff-btn.sel { border-color:var(--gold); background:rgba(255,215,0,.15); color:var(--gold); }
+
+  /* ===== POWERUP BAR ===== */
+  #powerup-bar {
+    position:fixed; bottom:0; left:0; right:0;
+    z-index:99;
+    display:flex; gap:12px; justify-content:center; align-items:center;
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+    background: linear-gradient(0deg, rgba(0,0,0,.85), rgba(20,0,40,.7));
+    border-top: 2px solid rgba(255,215,0,.2);
+    height: 70px;
+  }
+  .power-icon {
+    width:48px; height:48px; border-radius:14px;
+    background:rgba(255,255,255,.08); border:2px solid rgba(255,255,255,.15);
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px;
+    position:relative;
+    cursor:pointer;
+    transition: transform .1s;
+  }
+  .power-icon:active { transform:scale(.88); }
+  .power-icon .p-count {
+    position:absolute; top:-6px; right:-6px;
+    background:var(--red); color:#fff;
+    font-size:11px; font-family:'Nunito',sans-serif; font-weight:900;
+    width:18px; height:18px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .power-icon.active { border-color:var(--gold); box-shadow:0 0 14px var(--gold); animation:powerPulse .6s infinite alternate; }
+  @keyframes powerPulse { from{box-shadow:0 0 10px var(--gold)} to{box-shadow:0 0 25px var(--gold), 0 0 40px rgba(255,215,0,.4)} }
+  .power-icon.used { opacity:.3; }
+
+  /* countdown */
+  #countdown {
+    position:fixed; inset:0; z-index:250;
+    display:flex; align-items:center; justify-content:center;
+    pointer-events:none;
+    visibility:hidden;
+  }
+  #countdown-num {
+    font-size:30vw; color:#fff;
+    text-shadow:0 0 60px var(--gold);
+    opacity:0;
+  }
+  @keyframes countAnim {
+    0%{transform:scale(2); opacity:0}
+    40%{opacity:1}
+    100%{transform:scale(.5); opacity:0}
+  }
+
+  /* screen shake */
+  @keyframes shake {
+    0%,100%{transform:translateX(0) scale(1)}
+    20%{transform:translateX(-7px) scale(1.01)}
+    40%{transform:translateX(7px) scale(1.01)}
+    60%{transform:translateX(-4px)}
+    80%{transform:translateX(4px)}
+  }
+  .shake { animation:shake .35s ease-out; }
+
+  /* rainbow flash */
+  #flash {
+    position:fixed; inset:0; z-index:199; pointer-events:none;
+    opacity:0; transition:opacity .1s;
+    mix-blend-mode:screen;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+<div id="flash"></div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-block">
+    <div class="hud-label">Score</div>
+    <div class="hud-val" id="score-val">0</div>
+  </div>
+  <div class="hud-block">
+    <div class="hud-label">Time</div>
+    <div class="hud-val" id="timer-val">60</div>
+  </div>
+  <div class="hud-block">
+    <div class="hud-label">Best</div>
+    <div class="hud-val" id="best-val">0</div>
+  </div>
+</div>
+<div id="combo-display"></div>
+
+<!-- ARENA -->
+<div id="arena">
+  <div id="field">
+    <div id="grid">
+      <!-- holes injected by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- POWERUPS -->
+<div id="powerup-bar">
+  <div class="power-icon" id="pw-freeze" onclick="usePower('freeze')" title="Freeze time">❄️<span class="p-count" id="pw-freeze-c">0</span></div>
+  <div class="power-icon" id="pw-bomb" onclick="usePower('bomb')" title="Bomb all moles">💣<span class="p-count" id="pw-bomb-c">0</span></div>
+  <div class="power-icon" id="pw-2x" onclick="usePower('2x')" title="2x Score">⚡<span class="p-count" id="pw-2x-c">0</span></div>
+</div>
+
+<!-- START SCREEN -->
+<div id="start-screen" class="screen">
+  <div class="game-title">CRAZY<br>MOLES!</div>
+  <div class="title-sub">3D Whack-A-Mole Mayhem</div>
+  <div class="diff-btns">
+    <div class="diff-btn sel" data-d="easy" onclick="setDiff(this,'easy')">😊 Easy</div>
+    <div class="diff-btn" data-d="normal" onclick="setDiff(this,'normal')">😤 Normal</div>
+    <div class="diff-btn" data-d="insane" onclick="setDiff(this,'insane')">💀 Insane</div>
+  </div>
+  <div class="instructions">
+    <span>🟤 Brown mole</span> = +10 pts<br>
+    <span>⭐ Golden mole</span> = +50 pts<br>
+    <span>💣 Bomb mole</span> = -30 pts!<br>
+    Combo streak = bonus multiplier!
+  </div>
+  <button class="btn btn-primary" onclick="startCountdown()">🎮 PLAY!</button>
+</div>
+
+<!-- GAME OVER SCREEN -->
+<div id="over-screen" class="screen hidden">
+  <div id="over-medal" class="medal">🏆</div>
+  <div style="font-size:22px;color:#fff;margin-top:8px">GAME OVER!</div>
+  <div class="score-final" id="final-score">0</div>
+  <div id="over-rank" style="font-size:18px;color:#ccc;font-family:Nunito,sans-serif;margin-top:4px"></div>
+  <button class="btn btn-primary" onclick="startCountdown()">🔁 PLAY AGAIN</button>
+  <button class="btn btn-secondary" onclick="showStart()">🏠 MENU</button>
+</div>
+
+<!-- COUNTDOWN OVERLAY -->
+<div id="countdown"><div id="countdown-num"></div></div>
+
+<script>
+// ============================================================
+// STARS
+// ============================================================
+(function(){
+  const c=document.getElementById('stars');
+  const ctx=c.getContext('2d');
+  c.width=window.innerWidth; c.height=window.innerHeight;
+  const stars=[];
+  for(let i=0;i<120;i++) stars.push({x:Math.random()*c.width,y:Math.random()*c.height*.6,r:Math.random()*1.5+.3,a:Math.random(),d:Math.random()*.02+.005});
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    stars.forEach(s=>{
+      s.a+=s.d; if(s.a>1||s.a<0)s.d*=-1;
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,255,255,${s.a})`; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ============================================================
+// MOLE SVGS
+// ============================================================
+function moleSVG(type){
+  if(type==='golden') return `<svg viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="40" cy="78" rx="30" ry="14" fill="#5a3a00" opacity=".5"/>
+    <ellipse cx="28" cy="30" rx="9" ry="16" fill="#b8860b" transform="rotate(-12,28,30)"/>
+    <ellipse cx="52" cy="30" rx="9" ry="16" fill="#b8860b" transform="rotate(12,52,30)"/>
+    <circle cx="40" cy="55" r="30" fill="#ffd700"/>
+    <circle cx="40" cy="50" r="26" fill="#f4c430"/>
+    <ellipse cx="40" cy="62" rx="14" ry="10" fill="#d4a000"/>
+    <circle cx="30" cy="44" r="8" fill="#fff"/><circle cx="50" cy="44" r="8" fill="#fff"/>
+    <circle cx="32" cy="44" r="5" fill="#222"/><circle cx="52" cy="44" r="5" fill="#222"/>
+    <circle cx="33" cy="43" r="2" fill="#fff"/><circle cx="53" cy="43" r="2" fill="#fff"/>
+    <ellipse cx="40" cy="56" rx="10" ry="7" fill="#d4a000"/>
+    <ellipse cx="40" cy="57" rx="7" ry="4" fill="#ff9999"/>
+    <line x1="20" y1="53" x2="35" y2="55" stroke="#888" stroke-width="1.5"/>
+    <line x1="20" y1="57" x2="35" y2="57" stroke="#888" stroke-width="1.5"/>
+    <line x1="45" y1="55" x2="60" y2="53" stroke="#888" stroke-width="1.5"/>
+    <line x1="45" y1="57" x2="60" y2="57" stroke="#888" stroke-width="1.5"/>
+    <ellipse cx="40" cy="70" rx="16" ry="6" fill="#d4a000"/>
+    <text x="32" y="73" font-size="10" fill="#fff" font-family="Arial">★★</text>
+  </svg>`;
+  if(type==='bomb') return `<svg viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="40" cy="78" rx="30" ry="14" fill="#1a0505" opacity=".5"/>
+    <ellipse cx="28" cy="30" rx="9" ry="16" fill="#333" transform="rotate(-12,28,30)"/>
+    <ellipse cx="52" cy="30" rx="9" ry="16" fill="#333" transform="rotate(12,52,30)"/>
+    <circle cx="40" cy="55" r="30" fill="#222"/>
+    <circle cx="40" cy="50" r="26" fill="#1a1a1a"/>
+    <circle cx="30" cy="44" r="8" fill="#ff0"/><circle cx="50" cy="44" r="8" fill="#ff0"/>
+    <circle cx="32" cy="44" r="5" fill="#f00"/><circle cx="52" cy="44" r="5" fill="#f00"/>
+    <circle cx="33" cy="43" r="2" fill="#fff"/><circle cx="53" cy="43" r="2" fill="#fff"/>
+    <text x="28" y="68" font-size="22" font-family="Arial">💥</text>
+    <circle cx="60" cy="20" r="6" fill="#ff4500"/>
+    <line x1="60" y1="14" x2="58" y2="8" stroke="#ff4500" stroke-width="2"/>
+    <circle cx="58" cy="7" r="3" fill="#ffff00" opacity=".9">
+      <animate attributeName="opacity" values="1;0.3;1" dur=".4s" repeatCount="indefinite"/>
+    </circle>
+    <text x="15" y="82" font-size="11" fill="#f00" font-family="Fredoka One,cursive">BOOM!</text>
+  </svg>`;
+  // normal brown mole
+  const hats=['','<rect x="22" y="14" width="36" height="5" rx="3" fill="#8B4513"/><rect x="28" y="6" width="24" height="12" rx="4" fill="#8B4513"/>','<path d="M20,20 Q40,4 60,20" fill="none" stroke="#ff69b4" stroke-width="4"/><circle cx="40" cy="12" r="5" fill="#ff69b4"/>'];
+  const hat=hats[Math.floor(Math.random()*hats.length)];
+  return `<svg viewBox="0 0 80 90" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="40" cy="78" rx="30" ry="14" fill="#3d1a00" opacity=".5"/>
+    <ellipse cx="28" cy="30" rx="9" ry="16" fill="#8B4513" transform="rotate(-12,28,30)"/>
+    <ellipse cx="52" cy="30" rx="9" ry="16" fill="#8B4513" transform="rotate(12,52,30)"/>
+    ${hat}
+    <circle cx="40" cy="55" r="30" fill="#8B4513"/>
+    <circle cx="40" cy="50" r="26" fill="#a0522d"/>
+    <ellipse cx="40" cy="62" rx="14" ry="10" fill="#c68642"/>
+    <circle cx="30" cy="44" r="8" fill="#fff"/><circle cx="50" cy="44" r="8" fill="#fff"/>
+    <circle cx="32" cy="44" r="5" fill="#1a1a2e"/><circle cx="52" cy="44" r="5" fill="#1a1a2e"/>
+    <circle cx="33" cy="43" r="2" fill="#fff"/><circle cx="53" cy="43" r="2" fill="#fff"/>
+    <ellipse cx="40" cy="56" rx="10" ry="7" fill="#c68642"/>
+    <ellipse cx="40" cy="57" rx="7" ry="4" fill="#ffaaaa"/>
+    <line x1="20" y1="53" x2="35" y2="55" stroke="#666" stroke-width="1.5"/>
+    <line x1="20" y1="57" x2="35" y2="57" stroke="#666" stroke-width="1.5"/>
+    <line x1="45" y1="55" x2="60" y2="53" stroke="#666" stroke-width="1.5"/>
+    <line x1="45" y1="57" x2="60" y2="57" stroke="#666" stroke-width="1.5"/>
+    <ellipse cx="40" cy="70" rx="16" ry="6" fill="#8B4513"/>
+  </svg>`;
+}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+const HOLES=9, ROWS=3, COLS=3;
+let score=0, best=parseInt(localStorage.getItem('cm3d_best')||'0'), timer=60;
+let combo=0, comboTimer=null;
+let multiplier=1;
+let powers={freeze:0,bomb:0,'2x':0};
+let activeEffect=null;
+let gameRunning=false;
+let intervals=[], timeouts=[];
+let difficulty='easy';
+
+const diffConfig={
+  easy:{spawnMin:900,spawnMax:1800,showMin:1600,showMax:2400,goldenChance:.08,bombChance:.05,time:60},
+  normal:{spawnMin:600,spawnMax:1200,showMin:1000,showMax:1700,goldenChance:.12,bombChance:.10,time:50},
+  insane:{spawnMin:300,spawnMax:700,showMin:600,showMax:1000,goldenChance:.15,bombChance:.18,time:40}
+};
+
+// ============================================================
+// BUILD GRID
+// ============================================================
+const grid=document.getElementById('grid');
+for(let i=0;i<HOLES;i++){
+  const wrap=document.createElement('div');
+  wrap.className='hole-wrap'; wrap.id='h'+i;
+  wrap.innerHTML=`<div class="hole-base"><div class="mole" id="m${i}"></div></div>`;
+  wrap.addEventListener('pointerdown', e=>{e.preventDefault(); whack(i);});
+  grid.appendChild(wrap);
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function $(id){return document.getElementById(id);}
+function showStart(){
+  $('over-screen').classList.add('hidden');
+  $('start-screen').classList.remove('hidden');
+  $('countdown').style.visibility='hidden';
+  $('countdown-num').textContent='';
+}
+function setDiff(el,d){
+  document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel'); difficulty=d;
+}
+function updateHUD(){
+  $('score-val').textContent=score;
+  $('best-val').textContent=best;
+  $('timer-val').textContent=timer;
+}
+function flashScreen(color){
+  const f=$('flash');
+  f.style.background=color; f.style.opacity='.4';
+  setTimeout(()=>{f.style.opacity='0';},100);
+}
+
+// ============================================================
+// COUNTDOWN → GAME START
+// ============================================================
+function startCountdown(){
+  $('start-screen').classList.add('hidden');
+  $('over-screen').classList.add('hidden');
+
+  const cfg=diffConfig[difficulty];
+  timer=cfg.time; score=0; combo=0; multiplier=1;
+  powers={freeze:0,bomb:0,'2x':0};
+  updateHUD(); updatePowerUI();
+
+  const overlay=$('countdown');
+  const cd=$('countdown-num');
+  overlay.style.visibility='visible';
+
+  const nums=['3','2','1','GO!'];
+  let i=0;
+
+  function showNext(){
+    if(i>=nums.length){
+      // fully hide — no display tricks, just make invisible + no pointer events
+      cd.style.opacity='0';
+      overlay.style.visibility='hidden';
+      cd.textContent='';
+      startGame();
+      return;
+    }
+    const txt=nums[i]; i++;
+    cd.textContent=txt;
+    cd.style.transition='none';
+    cd.style.transform='scale(2)';
+    cd.style.opacity='0';
+    // force reflow
+    cd.offsetHeight;
+    cd.style.transition='transform 0.5s ease-out, opacity 0.5s ease-out';
+    cd.style.transform='scale(1)';
+    cd.style.opacity='1';
+
+    const delay = txt==='GO!' ? 700 : 800;
+    timeouts.push(setTimeout(()=>{
+      cd.style.transition='transform 0.25s ease-in, opacity 0.25s ease-in';
+      cd.style.transform='scale(0.4)';
+      cd.style.opacity='0';
+      timeouts.push(setTimeout(showNext, 280));
+    }, delay));
+  }
+
+  showNext();
+}
+
+// ============================================================
+// START GAME
+// ============================================================
+function startGame(){
+  clearAll();
+  gameRunning=true;
+  const cfg=diffConfig[difficulty];
+  updateHUD();
+
+  // timer
+  intervals.push(setInterval(()=>{
+    if(!activeEffect?.freeze){ timer--; updateHUD(); }
+    if(timer<=0) endGame();
+    if(timer<=10) $('timer-val').style.color='#ff2200';
+    else $('timer-val').style.color='#ff6b6b';
+  },1000));
+
+  // spawn loop
+  spawnMole();
+}
+
+function spawnMole(){
+  if(!gameRunning) return;
+  const cfg=diffConfig[difficulty];
+  const delay=cfg.spawnMin+Math.random()*(cfg.spawnMax-cfg.spawnMin);
+  timeouts.push(setTimeout(()=>{
+    showRandomMole();
+    spawnMole();
+  },delay));
+}
+
+// ============================================================
+// SHOW/HIDE MOLE
+// ============================================================
+function showRandomMole(){
+  if(!gameRunning) return;
+  const cfg=diffConfig[difficulty];
+  // pick a free hole
+  const free=[];
+  for(let i=0;i<HOLES;i++){
+    const h=$('h'+i);
+    if(!h.classList.contains('active')&&!h.classList.contains('golden')&&!h.classList.contains('bomb')) free.push(i);
+  }
+  if(!free.length) return;
+  const idx=free[Math.floor(Math.random()*free.length)];
+  const wrap=$('h'+idx);
+  const mole=$('m'+idx);
+
+  // type
+  let type='normal';
+  const r=Math.random();
+  if(r<cfg.bombChance) type='bomb';
+  else if(r<cfg.bombChance+cfg.goldenChance) type='golden';
+
+  mole.innerHTML=moleSVG(type);
+  wrap.classList.remove('active','golden','bomb');
+  wrap.classList.add(type==='normal'?'active':type);
+
+  const showTime=cfg.showMin+Math.random()*(cfg.showMax-cfg.showMin);
+  const t=setTimeout(()=>hideMole(idx),showTime);
+  wrap._hideTimeout=t;
+}
+
+function hideMole(idx){
+  const wrap=$('h'+idx);
+  wrap.classList.remove('active','golden','bomb');
+}
+
+// ============================================================
+// WHACK
+// ============================================================
+function whack(idx){
+  if(!gameRunning) return;
+  const wrap=$('h'+idx);
+  const isActive=wrap.classList.contains('active')||wrap.classList.contains('golden')||wrap.classList.contains('bomb');
+  if(!isActive) return;
+
+  const isBomb=wrap.classList.contains('bomb');
+  const isGolden=wrap.classList.contains('golden');
+
+  clearTimeout(wrap._hideTimeout);
+  hideMole(idx);
+
+  if(isBomb){
+    // HIT BOMB
+    score=Math.max(0,score-30);
+    combo=0; multiplier=1;
+    flashScreen('#ff0000');
+    document.getElementById('field').classList.add('shake');
+    setTimeout(()=>document.getElementById('field').classList.remove('shake'),300);
+    showFloat('💥 -30',idx,'#ff4136');
+    updateHUD();
+    return;
+  }
+
+  // normal or golden
+  combo++;
+  clearTimeout(comboTimer);
+  comboTimer=setTimeout(()=>{combo=0; multiplier=1; $('combo-display').style.opacity=0;},1500);
+  multiplier=Math.min(combo>=10?5:combo>=6?4:combo>=3?3:combo>=2?2:1,5);
+
+  const base=isGolden?50:10;
+  const pts=base*multiplier*(activeEffect?.['2x']?2:1);
+  score+=pts;
+  if(score>best){best=score; localStorage.setItem('cm3d_best',best);}
+
+  showFloat((pts>0?'+':'')+pts, idx, isGolden?'#ffd700':'#39ff14');
+  spawnHitBurst(idx, isGolden);
+  if(isGolden) flashScreen('#ffd700');
+  updateHUD();
+
+  // combo display
+  if(combo>=2){
+    $('combo-display').textContent=`🔥 x${combo} COMBO! ×${multiplier}`;
+    $('combo-display').style.opacity=1;
+  }
+}
+
+function showFloat(text,idx,color){
+  const wrap=$('h'+idx);
+  const rect=wrap.getBoundingClientRect();
+  const el=document.createElement('div');
+  el.className='float-score';
+  el.textContent=text;
+  el.style.color=color;
+  el.style.left=(rect.left+rect.width/2-30)+'px';
+  el.style.top=(rect.top)+'px';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),900);
+}
+
+function spawnHitBurst(idx,golden){
+  const wrap=$('h'+idx);
+  const base=wrap.querySelector('.hole-base');
+  const burst=document.createElement('div');
+  burst.className='hit-burst';
+  burst.style.background=golden?'radial-gradient(circle,rgba(255,215,0,.8),transparent)':'radial-gradient(circle,rgba(57,255,20,.6),transparent)';
+  base.appendChild(burst);
+  for(let i=0;i<8;i++){
+    const s=document.createElement('div');
+    s.className='burst-star';
+    s.style.transform=`translateX(-50%) translateY(-100%) rotate(${i*45}deg)`;
+    s.style.background=golden?'#ffd700':'#39ff14';
+    s.style.animationDelay=(i*.03)+'s';
+    burst.appendChild(s);
+  }
+  setTimeout(()=>burst.remove(),600);
+}
+
+// ============================================================
+// POWERUPS
+// ============================================================
+function usePower(type){
+  if(!gameRunning||powers[type]<=0) return;
+  powers[type]--;
+  if(type==='freeze'){
+    activeEffect={freeze:true};
+    $('pw-freeze').classList.add('active');
+    showFloat('❄️ FROZEN!', 4, '#00cfff');
+    setTimeout(()=>{activeEffect=null; $('pw-freeze').classList.remove('active');},4000);
+  }
+  if(type==='bomb'){
+    for(let i=0;i<HOLES;i++){
+      const w=$('h'+i);
+      if(w.classList.contains('active')||w.classList.contains('golden')){
+        clearTimeout(w._hideTimeout);
+        const pts=w.classList.contains('golden')?50:10;
+        score+=pts*(activeEffect?.['2x']?2:1);
+        hideMole(i);
+        spawnHitBurst(i, w.classList.contains('golden'));
+      }
+    }
+    flashScreen('#ff8c00');
+    updateHUD();
+  }
+  if(type==='2x'){
+    activeEffect={'2x':true};
+    $('pw-2x').classList.add('active');
+    showFloat('⚡ ×2!', 4, '#ffd700');
+    setTimeout(()=>{activeEffect=null; $('pw-2x').classList.remove('active');},5000);
+  }
+  updatePowerUI();
+}
+
+function updatePowerUI(){
+  ['freeze','bomb','2x'].forEach(t=>{
+    const cnt=document.getElementById('pw-'+t.replace('2x','2x')+'-c');
+    if(cnt){ cnt.textContent=powers[t]; document.getElementById('pw-'+t).classList.toggle('used',powers[t]===0); }
+  });
+  $('pw-freeze-c').textContent=powers.freeze;
+  $('pw-bomb-c').textContent=powers.bomb;
+  $('pw-2x-c').textContent=powers['2x'];
+}
+
+// grant power on combos
+setInterval(()=>{
+  if(!gameRunning) return;
+  if(combo>=5&&Math.random()<.3){
+    const types=['freeze','bomb','2x'];
+    const t=types[Math.floor(Math.random()*3)];
+    powers[t]=Math.min(powers[t]+1,3);
+    updatePowerUI();
+  }
+},3000);
+
+// ============================================================
+// END GAME
+// ============================================================
+function endGame(){
+  gameRunning=false;
+  clearAll();
+  for(let i=0;i<HOLES;i++) hideMole(i);
+
+  if(score>best){best=score;localStorage.setItem('cm3d_best',best);}
+
+  $('final-score').textContent=score;
+  const ranks=[
+    [0,'😴 Sleepy Mole'],
+    [100,'🐾 Mole Whacker'],
+    [250,'⚡ Quick Paws'],
+    [500,'🔥 Blazing Hands'],
+    [750,'💎 Diamond Digger'],
+    [1000,'👑 MOLE MASTER'],
+    [2000,'🌟 LEGEND'],
+  ];
+  let rank=ranks[0][1];
+  for(const [t,r] of ranks){ if(score>=t) rank=r; }
+  $('over-rank').textContent=rank;
+  $('over-medal').textContent=score>=500?'🏆':score>=200?'🥈':'🥉';
+  $('over-screen').classList.remove('hidden');
+  $('combo-display').style.opacity=0;
+}
+
+// ============================================================
+// CLEAR
+// ============================================================
+function clearAll(){
+  intervals.forEach(clearInterval); intervals=[];
+  timeouts.forEach(clearTimeout); timeouts=[];
+}
+
+// ============================================================
+// INIT
+// ============================================================
+updateHUD();
+</script>
+</body>
+</html>
