@@ -1,19 +1,51 @@
 {
-  "name": "Your App Name",
-  "short_name": "Your App",
+  "name": "Crazy Moles",
+  "short_name": "Crazy Moles",
+  "description": "Dive into the fun world of Crazy Moles! Pop, smash, and chase adorable mischievous moles in this fast-paced and addictive arcade game. Bright visuals, smooth gameplay, and endless excitement await!",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ff7a18",
+  "theme_color": "#ff7a18",
+  "orientation": "portrait-primary",
+  "categories": ["game", "entertainment"],
+  "lang": "en",
+  "dir": "ltr",
   "icons": [
     {
-      "src": "/android-chrome-192x192.png",
-      "sizes": "192x192",
+      "src": "favicon-16x16.png",
+      "sizes": "16x16",
       "type": "image/png"
     },
     {
-      "src": "/android-chrome-512x512.png",
+      "src": "favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "android-chrome-512x512.png",
       "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
       "type": "image/png"
     }
   ],
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff",
-  "display": "standalone"
+  "screenshots": [
+    {
+      "src": "android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
 }
